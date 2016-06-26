@@ -1,0 +1,10 @@
+<html>
+	<head>
+		<meta content="{{ .CsrfSecret }}=" name="csrf-token" />
+	</head>
+
+	<body>
+		<h1>Welcome to the super secret area</h1>
+		<h3>Your secret message is: {{ .SecretMessage }}</h3>
+	</body>
+</html>

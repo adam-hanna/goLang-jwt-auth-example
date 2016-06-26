@@ -262,6 +262,7 @@ func updateAuthTokenString(refreshTokenString string, oldAuthTokenString string)
 			
 			return
 		} else {
+			log.Println("Refresh token has expired!")
 			// the refresh token has expired!
 			// Revoke the token in our db and require the user to login again
 			db.DeleteRefreshToken(refreshTokenClaims.StandardClaims.Id)
@@ -270,6 +271,7 @@ func updateAuthTokenString(refreshTokenString string, oldAuthTokenString string)
 			return
 		}
 	} else {
+		log.Println("Refresh token has been revoked!")
 		// the refresh token has been revoked!
 		err = errors.New("Unauthorized")
 		return

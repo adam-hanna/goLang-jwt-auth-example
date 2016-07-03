@@ -323,3 +323,15 @@ func updateRefreshTokenCsrf(oldRefreshTokenString string, newCsrfString string) 
 	newRefreshTokenString, err = refreshJwt.SignedString(signKey)
 	return
 }
+
+func GrabUUID(authTokenString string) (string, error) {
+	authToken, _ := jwt.ParseWithClaims(authTokenString, &models.TokenClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return "", errors.New("Error fetching claims")
+	})
+	authTokenClaims, ok := authToken.Claims.(*models.TokenClaims) 
+	if !ok {
+		return "", errors.New("Error fetching claims")
+	}
+	
+	return authTokenClaims.StandardClaims.Subject, nil
+}

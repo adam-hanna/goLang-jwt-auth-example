@@ -1,5 +1,6 @@
 <html>
 	<head>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0/jquery.min.js"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.2/components/core-min.js"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.2/components/sha256-min.js"></script>
 	</head>
@@ -7,15 +8,18 @@
 	<body>
 		<div id="login">
 			<h1>Login</h1>
-			<form name="fakeLogin" onsubmit="return DoSubmit();">
+			<form id="fakeLogin" name="fakeLogin" onsubmit="return DoSubmit();">
 				<input class="fullWidth" name="username" type="text" placeholder="username" />
 				<input class="fullWidth" name="password" type="password" placeholder="password" />
 
 				<input type="Submit" value="Login" />
 			</form>
-			<form style="display: none;" name="realLogin" action="/login" method="POST">
+			<form style="display: none;" id="realLogin" name="realLogin" action="/login" method="POST">
 				<input class="fullWidth" name="username" type="text" placeholder="username" />
 				<input class="fullWidth" name="password" type="password" placeholder="password" />
+			</form>
+			<form id="restricted" name="restricted" action="/restricted" method="POST" style="display: none;">
+				<input id="X-CSRF-Token-input" name="X-CSRF-Token" />
 			</form>
 		</div>
 
@@ -56,7 +60,36 @@
 			function DoSubmit(){
 				document.realLogin.username.value = document.fakeLogin.username.value;
 				document.realLogin.password.value = CryptoJS.SHA256(document.fakeLogin.password.value).toString(CryptoJS.enc.Hex);
-				document.realLogin.submit()
+
+				$.ajax({
+					'type': 	'POST',
+					'url': 		'/login',
+					'data': 	$('#realLogin').serializeArray(),
+					success: function(data, textStatus, request) {
+						var token = request.getResponseHeader('X-CSRF-Token');
+						console.log("Success! The token is: ", token);
+						$("#X-CSRF-Token-input").val(token);
+						$("#restricted").submit();
+
+						// $.ajax({
+						// 	'url': 		"/restricted",
+						// 	'headers': 	{ 'X-CSRF-Token' : token },             
+						// 	'type': 	"GET",
+						// 	success: function(data, textStatus, request) {
+						// 		console.log("Success the 2nd time!");
+						// 		console.log(data, textStatus, request)
+						// 	},
+						// 	error: function (request, textStatus, errorThrown) {
+						// 		console.log("Error the 2nd time!");
+						// 		console.log(request, textStatus, errorThrown)
+						// 	}
+						// });
+					},
+					error: function (request, textStatus, errorThrown) {
+						console.log("Error!", request.getResponseHeader('X-CSRF-Token'));
+					}
+				});
+
 				return false;
 			}
 		</script>

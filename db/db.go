@@ -8,6 +8,7 @@ import (
 	"github.com/adam-hanna/goLang-jwt-auth/randomstrings"
 	"golang.org/x/crypto/bcrypt"
 	"errors"
+	"log"
 )
 
 // create a database of users
@@ -105,6 +106,16 @@ func DeleteRefreshToken(jti string) {
 
 func CheckRefreshToken(jti string) bool {
 	return refreshTokens[jti] != ""
+}
+
+func LogUserIn(username string, password string) (models.User, string, error) {
+	user, uuid, userErr := FetchUserByUsername(username)
+	log.Println(user, uuid, userErr)
+	if userErr != nil {
+		return models.User{}, "", userErr
+	}
+
+	return user, uuid, checkPasswordAgainstHash(user.PasswordHash, password)
 }
 
 func generateBcryptHash(password string) (string, error) {

@@ -38,7 +38,7 @@ func authHandler(next http.Handler) http.Handler {
 		// include list of restricted paths, comma sep
 		// I'm including logout here, bc I don't want a baddie forcing my users to logout
 		switch r.URL.Path {
-		case "/restricted", "/logout":
+		case "/restricted", "/logout", "/deleteUser":
 			log.Println("In auth restricted section")
 
 			// read cookies
@@ -46,7 +46,8 @@ func authHandler(next http.Handler) http.Handler {
 			if authErr == http.ErrNoCookie {
 				log.Println("Unauthorized attempt! No auth cookie")
 				nullifyTokenCookies(&w, r)
-				http.Redirect(w, r, "/login", 302)
+				// http.Redirect(w, r, "/login", 302)
+				http.Error(w, http.StatusText(401), 401)
 				return
 			} else if authErr != nil {
 				log.Panic("panic: %+v", authErr)
@@ -70,15 +71,16 @@ func authHandler(next http.Handler) http.Handler {
 
 			// grab the csrf token
 			requestCsrfToken := grabCsrfFromReq(r)
-			
+			log.Println(requestCsrfToken)
 
 			// check the jwt's for validity
 			authTokenString, refreshTokenString, csrfSecret, err := myJwt.CheckAndRefreshTokens(AuthCookie.Value, RefreshCookie.Value, requestCsrfToken)
 			if err != nil {
 				if err.Error() == "Unauthorized" {
 					log.Println("Unauthorized attempt! JWT's not valid!")
-					nullifyTokenCookies(&w, r)
-					http.Redirect(w, r, "/login", 302)
+					// nullifyTokenCookies(&w, r)
+					// http.Redirect(w, r, "/login", 302)
+					http.Error(w, http.StatusText(401), 401)
 					return
 				} else {
 					// @adam-hanna: do we 401 or 500, here?
@@ -86,7 +88,7 @@ func authHandler(next http.Handler) http.Handler {
 					// or it could be 500 bc there was some error on our end
 					log.Println("err not nil")
 					log.Panic("panic: %+v", err)
-					nullifyTokenCookies(&w, r)
+					// nullifyTokenCookies(&w, r)
 					http.Error(w, http.StatusText(500), 500)
 					return
 				}
@@ -124,6 +126,29 @@ func logicHandler(w http.ResponseWriter, r *http.Request) {
 			templates.RenderTemplate(w, "login", &templates.LoginPage{ false, "" })
 
 		case "POST":
+			r.ParseForm()
+			log.Println(r.Form)
+
+			user, uuid, loginErr := db.LogUserIn(strings.Join(r.Form["username"], ""), strings.Join(r.Form["password"], ""))
+			log.Println(user, uuid, loginErr)
+			if loginErr != nil {
+				// login err
+				// templates.RenderTemplate(w, "login", &templates.LoginPage{ true, "Login failed\n\nIncorrect username or password" })
+				w.WriteHeader(http.StatusUnauthorized)
+			} else {
+				// no login err
+				// now generate cookies for this user
+				authTokenString, refreshTokenString, csrfSecret, err := myJwt.CreateNewTokens(uuid, user.Role)
+				if err != nil {
+					http.Error(w, http.StatusText(500), 500)
+				}
+
+				// set the cookies to these newly created jwt's
+				setAuthAndRefreshCookies(&w, authTokenString, refreshTokenString)
+				w.Header().Set("X-CSRF-Token", csrfSecret)
+
+				w.WriteHeader(http.StatusOK)
+			}
 
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -140,34 +165,29 @@ func logicHandler(w http.ResponseWriter, r *http.Request) {
 			// check to see if the username is already taken
 			_, uuid, err := db.FetchUserByUsername(strings.Join(r.Form["username"], ""))
 			if err == nil {
-				templates.RenderTemplate(w, "register", &templates.RegisterPage{ true, "Username not available!" })
+				// templates.RenderTemplate(w, "register", &templates.RegisterPage{ true, "Username not available!" })
+				w.WriteHeader(http.StatusUnauthorized)
+			} else {
+				// nope, now create this user
+				role := "user"
+				uuid, err = db.StoreUser(strings.Join(r.Form["username"], ""), strings.Join(r.Form["password"], ""), role)
+				if err != nil {
+					http.Error(w, http.StatusText(500), 500)
+				}
+				log.Println("uuid: " + uuid)
+
+				// now generate cookies for this user
+				authTokenString, refreshTokenString, csrfSecret, err := myJwt.CreateNewTokens(uuid, role)
+				if err != nil {
+					http.Error(w, http.StatusText(500), 500)
+				}
+
+				// set the cookies to these newly created jwt's
+				setAuthAndRefreshCookies(&w, authTokenString, refreshTokenString)
+				w.Header().Set("X-CSRF-Token", csrfSecret)
+
+				w.WriteHeader(http.StatusOK)
 			}
-
-			// nope, now create this user
-			role := "user"
-			uuid, err = db.StoreUser(strings.Join(r.Form["username"], ""), strings.Join(r.Form["password"], ""), role)
-			if err != nil {
-				http.Error(w, http.StatusText(500), 500)
-			}
-			log.Println("uuid: " + uuid)
-
-			// now generate cookies for this user
-			authTokenString, refreshTokenString, csrfSecret, err := myJwt.CreateNewTokens(uuid, role)
-			if err != nil {
-				http.Error(w, http.StatusText(500), 500)
-			}
-
-			// set the cookies to these newly created jwt's
-			setAuthAndRefreshCookies(&w, authTokenString, refreshTokenString)
-			w.Header().Set("X-CSRF-Token", csrfSecret)
-			// r.Header().Set("X-CSRF-Token", csrfSecret)
-			// r.Form.Add("X-CSRF-Token", csrfSecret)
-
-			// send the user to the restricted page
-			// http.Redirect(w, r, "/restricted", 302)
-
-			// templates.RenderTemplate(w, "restricted", &templates.RestrictedPage{ csrfSecret, "Stoofs!" })
-			w.WriteHeader(http.StatusOK)
 
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -177,6 +197,38 @@ func logicHandler(w http.ResponseWriter, r *http.Request) {
 		nullifyTokenCookies(&w, r)
 		// use 302 to force browser to do GET request
 		http.Redirect(w, r, "/login", 302)
+
+	case "/deleteUser":
+		log.Println("Deleting user")
+
+		// grab auth cookie
+		AuthCookie, authErr := r.Cookie("AuthToken")
+		if authErr == http.ErrNoCookie {
+			log.Println("Unauthorized attempt! No auth cookie")
+			nullifyTokenCookies(&w, r)
+			http.Redirect(w, r, "/login", 302)
+			return
+		} else if authErr != nil {
+			log.Panic("panic: %+v", authErr)
+			nullifyTokenCookies(&w, r)
+			http.Error(w, http.StatusText(500), 500)
+			return
+		}
+
+		uuid, uuidErr := myJwt.GrabUUID(AuthCookie.Value)
+		if uuidErr != nil {
+			log.Panic("panic: %+v", uuidErr)
+			nullifyTokenCookies(&w, r)
+			http.Error(w, http.StatusText(500), 500)
+			return
+		}
+
+		db.DeleteUser(uuid)
+		// remove this user's ability to make requests
+		nullifyTokenCookies(&w, r)
+		// use 302 to force browser to do GET request
+		http.Redirect(w, r, "/register", 302)
+
 	default:
 		w.WriteHeader(http.StatusOK)
 	}

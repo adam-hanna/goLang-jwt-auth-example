@@ -1,4 +1,4 @@
-# goLang-jwt-auth
+# goLang-jwt-auth-example
 This is an example implementation of jwt auth with goLang. Please note that I am not an expert in this field and am creating this repository more for a learning experience than anything else. I hope to learn a lot from this experience and am sharing my work so that you might learn, too.
 
 Also, this isn't an exmaple of how to structure a web app or how to map and handle authorized / un-authorized routes, etc.

@@ -2,7 +2,7 @@ package models
 
 import (
 	"time"
-	"github.com/adam-hanna/goLang-jwt-auth/randomstrings"
+	"github.com/adam-hanna/goLang-jwt-auth-example/randomstrings"
 	jwt "github.com/dgrijalva/jwt-go"
 )
 

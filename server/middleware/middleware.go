@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 	"strings"
-	"github.com/adam-hanna/goLang-jwt-auth/server/middleware/myJwt"
-	"github.com/adam-hanna/goLang-jwt-auth/server/templates"
-	"github.com/adam-hanna/goLang-jwt-auth/db"
+	"github.com/adam-hanna/goLang-jwt-auth-example/server/middleware/myJwt"
+	"github.com/adam-hanna/goLang-jwt-auth-example/server/templates"
+	"github.com/adam-hanna/goLang-jwt-auth-example/db"
 )
 
 func NewHandler() http.Handler {

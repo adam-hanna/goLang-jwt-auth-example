@@ -2,9 +2,9 @@ package main
 
 import (
 	"log"
-	"github.com/adam-hanna/goLang-jwt-auth/db"
-	"github.com/adam-hanna/goLang-jwt-auth/server"
-	"github.com/adam-hanna/goLang-jwt-auth/server/middleware/myJwt"
+	"github.com/adam-hanna/goLang-jwt-auth-example/db"
+	"github.com/adam-hanna/goLang-jwt-auth-example/server"
+	"github.com/adam-hanna/goLang-jwt-auth-example/server/middleware/myJwt"
 )
 
 var host = "localhost"

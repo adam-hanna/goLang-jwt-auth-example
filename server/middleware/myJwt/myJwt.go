@@ -12,8 +12,8 @@ import (
 	"time"
 	"errors"
 	"log"
-	"github.com/adam-hanna/goLang-jwt-auth/db/models"
-	"github.com/adam-hanna/goLang-jwt-auth/db"
+	"github.com/adam-hanna/goLang-jwt-auth-example/db/models"
+	"github.com/adam-hanna/goLang-jwt-auth-example/db"
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
